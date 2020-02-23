@@ -364,20 +364,29 @@ http://localhost:8080 에서 explorer가 실행되는 것을 확인할 수 있�
 
 문서의 pdf가 고유의 해시값을 보유하게 되는 매커니즘은 아래와 같다. 
 
-1. 스캔은 되었다고 가정한다. 이 과정에 string도 추출되었다고 가정한다. 
-2. 여기서 인자를 뽑아내어서 해시과정을 거친다. 
-3. 문서마다 고유의 해시 결과값을 얻어낼 수 있다. 
+1. 스캔은 되었다고 가정한다. 스캔 과정에서 string도 추출되었다고 가정한다. 
+2. 여기서 각 문서별 인자를 뽑아내어서 해시과정을 거친다. 인자는 시험지의 주인, 날짜 및 과목 등으로 결정된다. 이를 통하여 각 시험지별로 각기 다른 인자를 확보한다.
+3. 문서마다 고유의 해시 결과값을 얻어낸다. 
 
 해당 문서의 해시값이 처음으로 공유될 때 기록물 생성임을 알 수 있게 된다. 
 
 문서 등록과 파기도 구현되었다. 생성과 파기는 DocMetadata의 DocStatus 따라 달라지게 설정하였다. false가 되면 파기되는 것으로 확인할 수 있다.
 DocStatus는 생성될 때는 true 값을 Default로 설정하였다. 
 
+Pdf Scan 및 String 추출 -> 해싱과정 후 해시 값 추출 -> 해당 해시값과 원본 증명하려는 문서의 string의 해시 결과값을 비교 -> true -> 원본 증명 완료 -> false -> 원본증명 실패 
+
 ### FN005 
 
-생성 및 삭제는 FN004에서 설명한 바와 같은 절차를 거쳐서 실행된다. 이 모든 절차들은 블록체인 상에서는 거래로 기록된다. 
-해당 기록에 대한 해시값을 통해 생성, 삭제 기록을 열람할 수 있다. 
-그리고 원본증명에 대한 신청을 했을시에 나타나는 거래 역시 체인에 기록되기에 해당 기록에 대한 열람도 추후에 가능하다. 
+생성 및 삭제는 FN004에서 설명한 바와 같은 절차를 거쳐서 실행된다. 문서의 생섬 및 삭제는  블록체인 상에서는 거래로 기록된다. 해당 기록에 대한 해시값을 통해 생성, 삭제 기록을 열람할 수 있다. 
+
+원본증명에 대한 신청을 했을시에 나타나는 거래 역시 체인에 기록되기에 해당 기록에 대한 열람도 가능하다. FN 004에서 언급하였듯이, 생성 및 문서 열람 그리고 원본증명 조회에는 DocStatus는 True 값이 반환되며 삭제에 대한 조회는 False 값이 반환될 것이다. 
+
+생성 기록 조회 - 문서 생성 -> 문서별 해시 값 부여 -> 해시 값으로 체인에서 조회 -> 일치하는 해시 값 조회 -> true -> 해당 문서 기록 조회 체인에 기록 -> false -> 해당 문서 기록 조회 체인에 기록
+
+삭제 기록 조회 - 문서 삭제 -> 해당 Docstatus false 로 변환 -> 해당 삭제 기록 체인에 기록 
+
+전자 문서 원본증명 조회 - 원본증명 프로세스 -> true -> 원본증명 기록 체인에 기록 
+-> false -> 원본증명 기록 체인에 기록
 
 ### FN006 
 
@@ -386,99 +395,13 @@ DocStatus는 생성될 때는 true 값을 Default로 설정하였다.
 
 개인키를 통한 공개키와의 일치 여부는 기록되지 않으나, 열람 기록은 기록된다. 열람을 하면 해당 과정에 대한 결과물과 열람 요청 시점을 같이 확인할 수 있다. 
 
+원본 증명에 대한 
+
 ### 결론
 
-우리는 좆됐다.
-
-### system_architecture
-
-org 개수 : 2개 
-org 당 peer : 2개 
-
-총 peer : 4개 
-
-image
-
-/// 코드 설명 
-
-studentdata.go 
-// func certify()
-json 파일을 로드 
-로드하면서 문제있음 -> err
-빈 값이 있으면 -> err 
-그렇지 않으면 모두 트루 
-
-결과물은 무조건 DOC 0000 /DOC 0001 방식으로 작성됨.
-
-// func getinfo() 
-docmetadata를 만들어내는 함수 
-
-개인키 없으면 createKey()
-있으면 load해서 pubkey 
-
-dataStruct.go 
-DocMetadata -> 실질적으로 사용하는 것 
-EOwner -> 요구사항
-
-// chaincode 
-
-getinfo 정보 받아오는 거ㅓㅅ 
-timestamp -> time.Now() 타임스탬프 
-Docstatus -> true : 파기 x 생성때는 true, false면 파기 
-
-deleteDocumnet 
-json.Unmarshal -> false 로 하면 파기된 것으로 간주 
-
-	key := loadKey()
-
-	decBytes := decryptDoc(checkID, key)
-	if string(decBytes) != "c-link" {
-		return shim.Error("invalid Private key")
-	}
-
-checkID와 개인 key를 확인하여 c-link와 일치한지 확인하고 아니라면 옳지 않은 개인키로 간주한다. 
-
-queryAllDocs -> 전체 문서 뽑는 것 
-
-queryDoc -> 특정 문서만 뽑는 것 
-
-C-Link 라는 문구로 현재 암호화를 시킨 상태인것이고, 자신의 공개기로 암호화 그리고 개인키로 복호화 시키는 과정을 거친 것이다. 
-
-### 참조 링크
-
-https://github.com/hyperledger/blockchain-explorer/blob/master/README.md
-
-https://github.com/hyperledger/blockchain-explorer/blob/master/CONFIG-FABCAR-HLEXPLORER.md
-
-https://medium.com/beyondi/understanding-hyperledger-explorer-setup-via-docker-6af845fcb82e
-
-https://readthedocs.org/projects/blockchain-explorer/downloads/pdf/master/
-
-https://medium.com/coinmonks/hyperledger-fabric-composer-errors-solutions-827112a3fce6
-
-https://github.com/praspadm/blockchain-explorer/blob/master/TROUBLESHOOT.md
-
-https://github.com/hyperledger/blockchain-explorer/blob/master/TROUBLESHOOT.md
-
-https://github.com/hyperledger/blockchain-explorer
-
-https://lists.hyperledger.org/g/fabric/topic/can_anyone_help_me_with/32052223?p=,,,20,0,0,0::recentpostdate%2Fsticky,,,20,2,0,32052223
-
-https://leechwin.tistory.com/entry/NPM-%ED%8A%B9%EC%A0%95-%EB%B2%84%EC%A0%84-npm-%EC%84%A4%EC%B9%98
-
-https://hyperledger-fabric.readthedocs.io/en/latest/install.html
-
-https://hyperledger-fabric.readthedocs.io/en/latest/build_network.html
-
-https://medium.com/@thanawitsupinnapong/setting-up-hyperledger-explorer-on-fabric-5f1f7cda73b3
-
-https://c10106.tistory.com/2932
-
-https://chartio.com/resources/tutorials/how-to-start-postgresql-server-on-mac-os-x/
-
-https://github.com/nodesource/distributions/issues/138
-
-https://medium.com/coinmonks/hyperledger-explorer-quick-start-50a49c6d7957
+서류는 스캔이 되고, 문자열이 추출된 상태로 가정한다. 이 추출된 문자열과 문서별 인자들을 input 값으로 한 hash 값을 계산해낸다. 해당 문서를 체인에 기록을 하게 되면, DocStatus의 Default 값인 true가 반환된다. 추후, 문서 열람, 삭제 및 원본증명 기록도 체인에 기록된다. 문서 생성, 열람 그리고 원본증명에는 DocStatus가 true 값이 반환되고 삭제 조회에는 false 값이 반환된다. 
 
 
-공개키 & 개인키 // C-Link 암호화, 복호화 과정
+### 문서에 대한 소유권 검증
+
+개인키 소유 -> true -> 공개키 추출 -> c-link 로 암호화 -> 결과값 -> 개인키로 복호화 -> c-link -> true 소유권 증명 -> false -> 소유권 증명 실패
