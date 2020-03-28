@@ -5,7 +5,7 @@ package main
 
 import (
 	"bufio"
-	_ "encoding/json"
+	"bytes"
 	"encoding/pem"
 	"fmt"
 	"os"
@@ -17,35 +17,28 @@ import (
 	"crypto/x509"
 )
 
+//DOCIndex의 번호를 저장하기 위한 변수
 var docIndex int
 
-func InitFunc(){
+//docIndex 변수를 초기화
+func InitFunc() {
 	docIndex = 1
 }
 
 func certify(args []string) MetaData {
 
-	// b, err := ioutil.ReadFile("eowner.json") // eowner.json 파일의 내용을 읽어서 바이트 슬라이스에 저장
-	var data EOwner                        // JSON 문서의 데이터를 저장할 구조체 슬라이스 선언
+	var data EOwner
 	var sys SysInfo
 	var meta MetaData
-	// var docNumber int
 
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	meta.tf = false
-	// 	return meta
-	// }
-
-	// json.Unmarshal(b, &data) // JSON 문서의 내용을 변환하여 data에 저장
 	data = EOwner{
-		EOwnerKey : false,
-		EOwnerID : args[0],
-		EOwnerName : args[1],
-		EOwnerEmail : args[2],
-		EOwnerDepartMentName : args[3],
-		EOwnerPosition : args[4],
-		EOwnerTelephone : args[5]}
+		EOwnerKey:            args[7],
+		EOwnerID:             args[0],
+		EOwnerName:           args[1],
+		EOwnerEmail:          args[2],
+		EOwnerDepartMentName: args[3],
+		EOwnerPosition:       args[4],
+		EOwnerTelephone:      args[5]}
 	// docNumber = len(data) - 1
 	fmt.Println(data)
 	if (data.EOwnerID == "") || (data.EOwnerName == "") || (data.EOwnerDepartMentName == "") || (data.EOwnerPosition == "") {
@@ -107,11 +100,10 @@ func createKey() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	fmt.Println("success CreateKey")
 	pemPrivateFile.Close()
 }
 
-func loadKey() *rsa.PrivateKey {
+func loadKeyPri() *rsa.PrivateKey {
 	privateKeyFile, err := os.Open("private_key.pem")
 	if err != nil {
 		fmt.Println(err)
@@ -144,16 +136,22 @@ func decryptDoc(encryptedMsg []byte, prikey *rsa.PrivateKey) []byte {
 	return decryptedMsg
 }
 
+func checkDocHash(docHash, args []byte) bool {
+	checkArgs := sha512.Sum512(args)
+	return bytes.Equal(docHash, checkArgs[:])
+}
+
 func getInfo(args []string) DocMetadata {
 	var sendingData DocMetadata
 	var arrMeta MetaData
 	arrMeta = certify(args)
 
-	if arrMeta.EOwner.EOwnerKey == false {
+	//만약 생성된 키가 없다면 키를 생성해준다.
+	if arrMeta.EOwner.EOwnerKey == "false" {
 		createKey()
 	}
 
-	prikey := loadKey()
+	prikey := loadKeyPri()
 	pubkey := &prikey.PublicKey
 	text := encryptDoc(pubkey)
 
@@ -166,11 +164,16 @@ func getInfo(args []string) DocMetadata {
 	}
 	strNum = "DOC" + strNum
 	sendingData.DocIndex = strNum
+
+	//EOwner의 값은 한개의 byte배열로 받음
 	sendingData.EOwner = []byte(fmt.Sprintf("%v", arrMeta.EOwner))
 
+	//테스트 단계에서는 Clink와 test라는 임의의 값을 생성했다.
 	sendingData.SysInfo = "Clink"
 	sendingData.ClsScheme = "test"
-	sendingData.DocHash = []byte("pdfDummy")
+
+	//SHA512를 사용, 문서 내용의 무결성을 보장한다.
+	sendingData.DocHash = sha512.Sum512([]byte(args[6]))
 	sendingData.encryptedC = text
 
 	return sendingData
